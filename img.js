@@ -479,6 +479,11 @@ class Image {
 
         let sharpInstance = sharpImage.clone();
         if(stat.width < metadata.width || (this.options.svgAllowUpscale && metadata.format === "svg")) {
+          if (metadata.format !== "svg") {
+            // Convert into 16-bit linear color before resizing
+            sharpInstance.pipelineColourspace('rgb16');
+            sharpInstance.gamma();
+          }
           let resizeOptions = {
             width: stat.width
           };

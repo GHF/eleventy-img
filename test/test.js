@@ -3,6 +3,8 @@ const test = require("ava");
 const fs = require("fs");
 const { URL } = require("url");
 const eleventyImage = require("../");
+const sharp = require("sharp");
+const pixelmatch = require('pixelmatch');
 
 // Remember that any outputPath tests must use path.join to work on Windows
 
@@ -947,4 +949,23 @@ test("Remote image with dryRun should have a buffer property, useCache: false", 
   });
 
   t.truthy(stats.png[0].buffer);
+});
+
+test("Downsampling doesn't darken images", async t => {
+  let stats = await eleventyImage("./test/gamma_2.2.jpg", {
+    widths: [256],
+    formats: ['auto'],
+    useCache: false,
+    dryRun: true,
+  });
+
+  const readToRaw = async input => {
+    // pixelmatch requires 4 bytes/pixel, hence alpha
+    return sharp(input).ensureAlpha().toFormat(sharp.format.raw).toBuffer();
+  };
+  const inRaw = await readToRaw("./test/gamma_2.2-256.jpg");
+  const outRaw = await readToRaw(stats.jpeg[0].buffer);
+  const [width, height] = [stats.jpeg[0].width, stats.jpeg[0].height];
+  // Most pixels should be perceptually half-gray (#BBB) after blending black and white
+  t.truthy(width * height / 2 <= pixelmatch(inRaw, outRaw, null, width, height));
 });
